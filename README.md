@@ -1,65 +1,119 @@
-## Local Setup
 
-#### This Part 2 of local deployment (the server side). If you have not completed Part 1 (the client side), please start with [Part 1 of local deployment](https://github.com/isaac8069/Re-Art-Client), and then complete this setup.
+# **Re-Art MERN Server**
 
-- Install the LTS version of node.js, available [here](https://nodejs.org/en/)
+This is the backend for the Re-Art MERN application, built with **Express.js**, **MongoDB (Mongoose)**, **Passport Authentication**, and **Stripe** integration for payments.
 
-- In a terminal, clone this repo
+---
 
-```sh
+## **Features**
+- RESTful API built with **Express.js**
+- **MongoDB Atlas** connection using **Mongoose**
+- **Authentication** with Passport & Bearer tokens
+- **Stripe Payment API** for test payments
+- **CORS enabled** for communication with React frontend
+- **Environment variable support** with `.env`
+- **Nodemon** for development and **concurrently** for running frontend + backend
+
+---
+
+## **Project Setup**
+
+### **1. Clone the repository**
+```bash
 git clone https://github.com/isaac8069/Re-Art-Server.git
-```
-
-- Navigate to the repo folder
-
-```sh
 cd Re-Art-Server
 ```
 
-- Install the project dependencies:
-
-```sh
+### **2. Install dependencies**
+```bash
 npm install
 ```
 
-- create a new folder in the main directory and name it "config". Within the folder create a file called "db.js".
+### **3. Environment variables**
+Create a `.env` file in the project root with:
 
-```sh
-mkdir config
-cd config
-touch db.js
+```env
+PORT=8000
+MONGODB_URI=mongodb+srv://<USERNAME>:<PASSWORD>@<CLUSTER>.mongodb.net/<DBNAME>?retryWrites=true&w=majority
+STRIPE_SECRET_KEY=sk_test_yourStripeTestKey
+NODE_ENV=development
 ```
 
-- within this file, include this code for setting up your database:
+*(Never commit `.env` — it’s already in `.gitignore`.)*
 
-```sh
-'use strict'
-
-// creating a base name for the mongodb
-// REPLACE THE STRING WITH YOUR OWN DATABASE NAME
-const mongooseBaseName = 'exampleApp'
-
-// create the mongodb uri for development and test
-const database = {
-	development: `mongodb://localhost/${mongooseBaseName}-development`,
-	test: `mongodb://localhost/${mongooseBaseName}-test`,
-}
-
-// Identify if development environment is test or development
-// select DB based on whether a test file was executed before `server.js`
-const localDb = process.env.TESTENV ? database.test : database.development
-
-// Environment variable MONGODB_URI will be available in
-// heroku production evironment otherwise use test or development db
-const currentDb = process.env.MONGODB_URI || localDb
-
-module.exports = currentDb
+### **4. Run the server**
+#### **Development (with hot reload)**
+```bash
+npm run server
 ```
 
-- Deploy the project on your local machine
-
-```sh
+#### **Production**
+```bash
 npm start
 ```
 
-- head to localhost:3000 to see the client and server running together.
+### **5. Run MERN (Full Stack)**
+If you have a React client inside `/client`, start both servers:
+```bash
+npm run dev
+```
+*(Uses `concurrently` to run backend + React frontend.)*
+
+---
+
+## **API Routes**
+
+### **Test Route**
+```http
+GET /
+```
+Response:
+```
+Stripe Integration Server
+```
+
+### **Payment Route**
+```http
+POST /api/pay
+```
+**Request Body:**
+```json
+{
+  "payment_method_id": "<Stripe Payment Method ID>",
+  "amount": 1000
+}
+```
+
+**Response:**
+```json
+{
+  "success": true
+}
+```
+
+---
+
+## **Folder Structure**
+```
+Re-Art-Server/
+│
+├── app/
+│   ├── data/         # Seed data
+│   └── routes/       # Route files
+│
+├── lib/              # Auth & middleware
+├── config/           # DB connection
+├── client/           # React frontend (if present)
+│
+├── server.js         # Main server file
+├── package.json
+└── .env.example
+```
+
+---
+
+## **Scripts**
+- `npm start` – Start server (production)
+- `npm run server` – Start server with nodemon (development)
+- `npm run client` – Start React client (if exists in `/client`)
+- `npm run dev` – Start backend & frontend concurrently
