@@ -1,135 +1,100 @@
-// Express docs: http://expressjs.com/en/api.html
-const express = require('express')
-// Passport docs: http://www.passportjs.org/docs/
-const passport = require('passport')
+// Express and Passport
+const express = require('express');
+const passport = require('passport');
 
-// pull in Mongoose model for pieces
-const Piece = require('../models/piece')
-// pull in Mongoose model for profile
-const Profile = require('../models/profile')
+// Mongoose models
+const Piece = require('../models/piece');
+const Profile = require('../models/profile');
 
-// this is a collection of methods that help us detect situations when we need
-// to throw a custom error
-const customErrors = require('../../lib/custom_errors')
+// Custom error utilities
+const { handle404 } = require('../../lib/custom_errors');
 
-// we'll use this function to send 404 when non-existant document is requested
-const handle404 = customErrors.handle404
+// Middleware
+const removeBlanks = require('../../lib/remove_blank_fields');
+const requireToken = passport.authenticate('bearer', { session: false });
 
-// this is middleware that will remove blank fields from `req.body`, e.g.
-// { tag: { title: '', text: 'foo' } } -> { tag: { text: 'foo' } }
-const removeBlanks = require('../../lib/remove_blank_fields')
-const { Router } = require('express')
-// // passing this as a second argument to `router.<verb>` will make it
-// // so that a token MUST be passed for that route to be available
-// // it will also set `req.user`
-const requireToken = passport.authenticate('bearer', { session: false })
+const router = express.Router();
 
-const router = express.Router()
-
-// INDEX all pieces
+// =======================
+// INDEX: Get all pieces
 // GET /pieces
-router.get('/pieces', (req, res, next) => {
-	console.log("PIECES SHOW")
-	Piece.find()
-		// .populate('tags')
-		.then((pieces) => {
-			// `pieces` will be an array of Mongoose documents
-			// we want to convert each one to a POJO, so we use `.map` to
-			// apply `.toObject` to each one
-			return pieces.map((piece) => piece.toObject())
-		})
-		// respond with status 200 and JSON of the pieces
-		.then((pieces) => res.status(200).json({ pieces: pieces }))
-		// if an error occurs, pass it to the handler
-		.catch(next)
-})
+// =======================
+router.get('/pieces', async (req, res, next) => {
+  try {
+    console.log("Fetching all pieces");
+    const pieces = await Piece.find();
+    res.status(200).json({ pieces: pieces.map(piece => piece.toObject()) });
+  } catch (err) {
+    next(err);
+  }
+});
 
-// INDEX pieces matching profile tags
-// GET /pieces/profile
-router.get('/pieces/profile/:profileId', (req, res, next) => {
-	let tagIds = []// Array holding profile's tagIds
-	// let tagNames = []// Array holding profile's tagNames
-	Profile.findById(req.params.profileId)
-	// .populate('tags')
-	.then(handle404)
-	// respond with status 200 and JSON of the profiles
-	.then((profile) => {
-		tagIds = profile.tags
-		// res.status(200).json({ tagIds: tagIds.toObject() })// This proved that we are getting tags
-		Piece.find({'tags': {$in: tagIds } })//This works just not dynamic
-		// Piece.find({$or:[{'tags':tagIds[0]}, {'tags':tagIds[1]}]  })//This works just not dynamic
-		// Piece.find({ "tags":["61b7af937a8985ab2413ebfe"] })
-		// Piece.find({ 'title':'Cloud' })
-		.then(handle404)
-		.then(pieces => res.status(200).json({ pieces: pieces}))
-		.catch(next)
-	})
-	// if an error occurs, pass it to the handler
-	.catch(next)
-})
+// =======================
+// INDEX by Profile Tags
+// GET /pieces/profile/:profileId
+// =======================
+router.get('/pieces/profile/:profileId', async (req, res, next) => {
+  try {
+    const profile = await Profile.findById(req.params.profileId).then(handle404);
+    const pieces = await Piece.find({ tags: { $in: profile.tags } }).then(handle404);
+    res.status(200).json({ pieces });
+  } catch (err) {
+    next(err);
+  }
+});
 
-// SHOW one piece
-// GET /pieces
-router.get('/pieces/:id', (req, res, next) => {
-	Piece.findById(req.params.id)
-		.then(handle404)
-		// respond with status 200 and JSON of the pieces
-		.then((piece) => res.status(200).json({ piece: piece.toObject() }))
-		// if an error occurs, pass it to the handler
-		.catch(next)
-})
+// =======================
+// SHOW: Get a single piece
+// GET /pieces/:id
+// =======================
+router.get('/pieces/:id', async (req, res, next) => {
+  try {
+    const piece = await Piece.findById(req.params.id).then(handle404);
+    res.status(200).json({ piece: piece.toObject() });
+  } catch (err) {
+    next(err);
+  }
+});
 
-// CREATE
+// =======================
+// CREATE: Add a new piece
 // POST /pieces
-router.post('/pieces', (req, res, next) => {
+// =======================
+router.post('/pieces', async (req, res, next) => {
+  try {
+    const piece = await Piece.create(req.body);
+    res.status(201).json(piece);
+  } catch (err) {
+    next(err);
+  }
+});
 
-	Piece.create(req.body)
-		// respond to succesful `create` with status 201 and JSON of new "tag"
-		.then((piece) => {
-			res.status(201).json(piece)
-		})
-		// if an error occurs, pass it off to our error handler
-		// the error handler needs the error message and the `res` object so that it
-		// can send an error message back to the client
-		.catch(next)
-})
+// =======================
+// DESTROY: Delete a piece
+// DELETE /pieces/:id
+// =======================
+router.delete('/pieces/:id', async (req, res, next) => {
+  try {
+    const piece = await Piece.findById(req.params.id).then(handle404);
+    await piece.deleteOne();
+    res.sendStatus(204);
+  } catch (err) {
+    next(err);
+  }
+});
 
-// DESTROY
-// DELETE /pieces/5a7db6c74d55bc51bdf39793
-router.delete('/pieces/:id', (req, res, next) => {
-	Piece.findById(req.params.id)
-		.then(handle404)
-		.then((piece) => {
-			// delete the tag ONLY IF the above didn't throw
-			piece.deleteOne()
-		})
-		// send back 204 and no content if the deletion succeeded
-		.then(() => res.sendStatus(204))
-		// if an error occurs, pass it to the handler
-		.catch(next)
-})
+// =======================
+// UPDATE: Modify a piece
+// PATCH /pieces/:id
+// =======================
+router.patch('/pieces/:id', requireToken, removeBlanks, async (req, res, next) => {
+  try {
+    const piece = await Piece.findById(req.params.id).then(handle404);
+    await piece.updateOne(req.body.piece);
+    res.sendStatus(204);
+  } catch (err) {
+    next(err);
+  }
+});
 
-// UPDATE
-// PATCH /pieces/5a7db6c74d55bc51bdf39793
-router.patch('/pieces/:id', requireToken, removeBlanks, (req, res, next) => {
-	// if the client attempts to change the `owner` property by including a new
-	// owner, prevent that by deleting that key/value pair
-	// delete req.body.piece.owner
-
-	Piece.findById(req.params.id)
-		.then(handle404)
-		.then((piece) => {
-			// pass the `req` object and the Mongoose record to `requireOwnership`
-			// it will throw an error if the current user isn't the owner
-			// requireOwnership(req, piece)
-
-			// pass the result of Mongoose's `.update` to the next `.then`
-			return piece.updateOne(req.body.piece)
-		})
-		// if that succeeded, return 204 and no JSON
-		.then(() => res.sendStatus(204))
-		// if an error occurs, pass it to the handler
-		.catch(next)
-})
-
-module.exports = router
+module.exports = router;

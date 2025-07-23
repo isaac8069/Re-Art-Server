@@ -1,18 +1,18 @@
-'use strict'
+'use strict';
 
-// Base name for the MongoDB database
-const mongooseBaseName = 'exampleApp';
+require('dotenv').config();
 
-// MongoDB URIs for development and test environments
+// Use the MONGODB_URI from .env, or fall back to local development/test DB
+const mongooseBaseName = 'reArtApp';
+
 const database = {
-	development: `mongodb://localhost/${mongooseBaseName}-development`,
-	test: `mongodb://localhost/${mongooseBaseName}-test`,
+  development: `mongodb://127.0.0.1:27017/${mongooseBaseName}-development`,
+  test: `mongodb://127.0.0.1:27017/${mongooseBaseName}-test`,
 };
 
-// Select the appropriate local database (development or test)
-const localDb = process.env.TESTENV ? database.test : database.development;
+const environment = process.env.NODE_ENV || 'development';
+const currentDb = process.env.MONGODB_URI || (process.env.TESTENV ? database.test : database.development);
 
-// Use production URI if available, otherwise fall back to local DB
-const currentDb = process.env.MONGODB_URI || localDb;
+console.log(`🔗 Using ${process.env.MONGODB_URI ? 'production' : environment} database: ${currentDb}`);
 
 module.exports = currentDb;

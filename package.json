@@ -1,27 +1,36 @@
 {
-  "name": "express-auth-mongoose-boilerplate",
+  "name": "re-art-server",
   "version": "1.0.0",
-  "description": "Auth boilerplate for mongoose express using token auth",
+  "description": "Re-Art MERN backend with authentication and Stripe integration.",
   "main": "server.js",
   "scripts": {
-    "start": "nodemon server.js",
+    "start": "node server.js",
+    "start:prod": "NODE_ENV=production node server.js",
+    "server": "nodemon server.js",
+    "client": "npm start --prefix client",
+    "client:build": "npm run build --prefix client",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "deploy:local": "npm run client:build && npm run start:prod",
+    "seed:tags": "node seeds/seedTags.js",
+    "seed:pieces": "node seeds/seedPieces.js",
+    "seed:all": "npm run seed:tags && npm run seed:pieces",
+    "heroku-postbuild": "npm install --prefix client && npm run build --prefix client",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "Timm Schoenborn",
+  "author": "Isaac Newman (based on Timm Schoenborn's boilerplate)",
   "license": "ISC",
   "dependencies": {
-    "bcrypt": "^5.0.1",
-    "body-parser": "^1.19.1",
+    "bcrypt": "^5.1.1",
+    "body-parser": "^1.20.2",
     "cors": "^2.8.5",
-    "dotenv": "^10.0.0",
-    "express": "^4.18.2",
-    "jsonwebtoken": "^8.5.1",
-    "mongodb": "^4.2.1",
-    "mongoose": "^6.8.2",
-    "passport": "^0.5.0",
+    "dotenv": "^16.3.1",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongodb": "^6.3.0",
+    "mongoose": "^7.6.1",
+    "passport": "^0.6.0",
     "passport-http-bearer": "^1.0.1",
-    "sequelize-cli": "^6.5.2",
-    "stripe": "^8.193.0"
+    "stripe": "^14.19.0"
   },
   "directories": {
     "lib": "lib"
@@ -30,12 +39,22 @@
     "type": "git",
     "url": "git+https://github.com/isaac8069/Re-Art-Server.git"
   },
-  "keywords": [],
+  "keywords": [
+    "mern",
+    "express",
+    "mongodb",
+    "stripe",
+    "passport"
+  ],
   "bugs": {
     "url": "https://github.com/isaac8069/Re-Art-Server/issues"
   },
   "homepage": "https://github.com/isaac8069/Re-Art-Server#readme",
   "devDependencies": {
+    "concurrently": "^8.2.2",
     "nodemon": "^3.1.7"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
