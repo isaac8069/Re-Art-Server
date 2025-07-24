@@ -1,0 +1,68 @@
+.communitySection {
+  padding: 40px 20px;
+  background-color: var(--background-color);
+  color: var(--text-color);
+}
+
+.cardGroup {
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  gap: 20px;
+  flex-wrap: wrap;
+  text-align: center;
+}
+
+.imageCard {
+  flex: 1 1 300px;
+  border: none;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: transform 0.3s ease;
+}
+
+.imageCard:hover {
+  transform: scale(1.02);
+}
+
+.communityImage {
+  width: 100%;
+  height: 400px;
+  object-fit: cover;
+  border-radius: 12px;
+  transition: transform 0.4s ease;
+}
+
+.imageCard:hover .communityImage {
+  transform: scale(1.05);
+}
+
+.textCard {
+  flex: 1 1 400px;
+  border: none;
+  background-color: var(--card-bg);
+  color: var(--text-color);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.quote {
+  font-size: 1rem;
+  margin-bottom: 15px;
+  font-style: italic;
+  line-height: 1.5;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .cardGroup {
+    flex-direction: column;
+    gap: 30px;
+  }
+
+  .communityImage {
+    height: 300px;
+  }
+}

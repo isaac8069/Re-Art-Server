@@ -1,0 +1,91 @@
+/* Base variables (light mode default) */
+:root {
+  --primary-color: #007bff;
+  --header-bg: #ffffff;
+  --header-text: #333333;
+  --background-color: #f8f9fa;
+  --text-color: #212529;
+  --link-color: #007bff;
+  --link-hover-color: #0056b3;
+  --dropdown-bg: #ffffff;
+  --dropdown-text: #333333;
+  --border-color: #dee2e6;
+}
+
+/* Dark mode overrides */
+body.dark {
+  --primary-color: #66b2ff;
+  --header-bg: #1c1c1c;
+  --header-text: #f5f5f5;
+  --background-color: #121212;
+  --text-color: #e5e5e5;
+  --link-color: #66b2ff;
+  --link-hover-color: #99ccff;
+  --dropdown-bg: #1c1c1c;
+  --dropdown-text: #f5f5f5;
+  --border-color: #444;
+}
+
+/* Apply background and text colors to app */
+body,
+.app {
+  background-color: var(--background-color);
+  color: var(--text-color);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Link styles */
+a {
+  color: var(--link-color);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  color: var(--link-hover-color);
+}
+
+/* Buttons */
+button,
+.btn {
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Dropdown styles to match theme */
+.dropdown-menu {
+  background-color: var(--dropdown-bg) !important;
+  border-color: var(--border-color) !important;
+}
+
+.dropdown-item {
+  color: var(--dropdown-text) !important;
+}
+
+.dropdown-item:hover {
+  background-color: var(--primary-color) !important;
+  color: #fff !important;
+}
+
+/* Navbar */
+.navbar,
+.navbar-light {
+  background-color: var(--header-bg) !important;
+  color: var(--header-text) !important;
+}
+
+.navbar .nav-link {
+  color: var(--header-text) !important;
+}
+
+.navbar .nav-link:hover {
+  color: var(--primary-color) !important;
+}
+
+.page-container {
+  padding: 40px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+.page-container h2 {
+  margin-bottom: 20px;
+}

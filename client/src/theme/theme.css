@@ -1,0 +1,21 @@
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  gap: 5px;
+}
+
+.theme-toggle.dark {
+  color: yellow;
+}
+
+.theme-toggle.light {
+  color: #333;
+}
+
+.theme-toggle:hover {
+  opacity: 0.8;
+}

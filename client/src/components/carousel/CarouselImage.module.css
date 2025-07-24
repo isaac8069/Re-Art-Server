@@ -1,0 +1,37 @@
+.carousel {
+  max-width: 100%;
+  margin: 0 auto;
+  position: relative;
+}
+
+.carouselImage {
+  height: 400px;
+  object-fit: cover;
+  border-radius: 8px;
+  transition: opacity 0.8s ease-in-out, transform 0.8s ease-in-out;
+  opacity: 0;
+  transform: scale(1.02);
+}
+
+/* Show the active image with fade-in and slight zoom-out */
+.carousel .carousel-item.active .carouselImage {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Optional: Smooth fade for captions (if added later) */
+.carousel-caption {
+  opacity: 0;
+  transition: opacity 0.5s ease-in-out;
+}
+
+.carousel-item.active .carousel-caption {
+  opacity: 1;
+}
+
+/* Adjust height for smaller screens */
+@media (max-width: 768px) {
+  .carouselImage {
+    height: 250px;
+  }
+}
