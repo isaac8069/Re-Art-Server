@@ -65,6 +65,11 @@ const generateResponse = (intent) =>
     ? { success: true }
     : { error: 'Invalid PaymentIntent status' };
 
+// Test Route (for development)
+app.get('/', (req, res) => {
+  res.send('Re-Art MERN backend is running.');
+});
+
 // Serve React frontend in production
 if (process.env.NODE_ENV === 'production') {
   const clientBuildPath = path.join(__dirname, 'client', 'build');
@@ -73,11 +78,6 @@ if (process.env.NODE_ENV === 'production') {
     res.sendFile(path.join(clientBuildPath, 'index.html'))
   );
 }
-
-// Test Route
-app.get('/', (req, res) => {
-  res.send('Re-Art MERN backend is running.');
-});
 
 // Error Handler
 app.use(errorHandler);
