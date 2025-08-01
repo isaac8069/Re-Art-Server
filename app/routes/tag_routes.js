@@ -1,9 +1,9 @@
 // Import dependencies
-import express from 'express'
-import passport from 'passport'
-import Tag from '../models/tag.js'
-import { handle404 } from '../../lib/custom_errors.js'
-import removeBlanks from '../../lib/remove_blank_fields.js'
+const express = require('express')
+const passport = require('passport')
+const Tag = require('../models/tag')
+const { handle404 } = require('../../lib/custom_errors')
+const removeBlanks = require('../../lib/remove_blank_fields')
 
 const router = express.Router()
 const requireToken = passport.authenticate('bearer', { session: false })
@@ -52,4 +52,4 @@ router.delete('/tags/:id', requireToken, async (req, res, next) => {
   }
 })
 
-export default router
+module.exports = router

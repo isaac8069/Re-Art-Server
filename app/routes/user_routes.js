@@ -1,9 +1,9 @@
-import express from 'express'
-import crypto from 'crypto'
-import passport from 'passport'
-import bcrypt from 'bcrypt'
-import User from '../models/user.js'
-import { BadParamsError, BadCredentialsError } from '../../lib/custom_errors.js'
+const express = require('express')
+const crypto = require('crypto')
+const passport = require('passport')
+const bcrypt = require('bcrypt')
+const User = require('../models/user')
+const { BadParamsError, BadCredentialsError } = require('../../lib/custom_errors')
 
 const router = express.Router()
 const bcryptSaltRounds = 10
@@ -96,4 +96,4 @@ router.delete('/sign-out', requireToken, async (req, res, next) => {
   }
 })
 
-export default router
+module.exports = router

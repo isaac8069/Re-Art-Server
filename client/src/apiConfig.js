@@ -1,6 +1,5 @@
 let apiUrl
 const apiUrls = {
-    // YOU MUST CHANGE PRODUCTION URL WHEN DEPLOYING
 	production: 'https://reartapi.herokuapp.com',
 	development: 'http://localhost:8000',
 }
@@ -11,33 +10,35 @@ if (window.location.hostname === 'localhost') {
 	apiUrl = apiUrls.production
 }
 
-// create local host variable for stripe api interaction
-const API_ENDPOINT = apiUrls.development
+const API_ENDPOINT = apiUrl  // <-- update this
+
 export const stripePaymentMethodHandler = async (data, cb) => {
-	const { amount, result } = data;
+	const { amount, result, token } = data
 	if (result.error) {
-	  // show error in payment form
-	  cb(result);
+		cb(result)
 	} else {
-	  const paymentResponse = await stripePayment({
-		payment_method_id: result.paymentMethod.id,
-		name: result.paymentMethod.billing_details.name,
-		email: result.paymentMethod.billing_details.email,
-		amount: amount
-	  });
-	  console.log(paymentResponse);
-	  cb(paymentResponse);
+		const paymentResponse = await stripePayment({
+			payment_method_id: result.paymentMethod.id,
+			name: result.paymentMethod.billing_details.name,
+			email: result.paymentMethod.billing_details.email,
+			amount: amount,
+			token: token // <-- pass the user token along
+		})
+		console.log(paymentResponse)
+		cb(paymentResponse)
 	}
-  }
-   
-  // place backend API call for payment
-  const stripePayment = async data => {
+}
+
+const stripePayment = async data => {
 	const res = await fetch(`${API_ENDPOINT}/pay`, {
-	  method: 'POST',
-	  headers: { 'Content-Type': 'application/json' },
-	  body: JSON.stringify(data),
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			Authorization: `Bearer ${data.token}` // <-- attach token
+		},
+		body: JSON.stringify(data),
 	})
-	return await res.json();
-  }
+	return await res.json()
+}
 
 export default apiUrl
