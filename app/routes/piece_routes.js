@@ -1,100 +1,99 @@
 // Express and Passport
-const express = require('express');
-const passport = require('passport');
+const express = require('express')
+const passport = require('passport')
 
 // Mongoose models
-const Piece = require('../models/piece');
-const Profile = require('../models/profile');
+const Piece = require('../models/piece')
+const Profile = require('../models/profile')
 
 // Custom error utilities
-const { handle404 } = require('../../lib/custom_errors');
+const { handle404 } = require('../../lib/custom_errors')
 
 // Middleware
-const removeBlanks = require('../../lib/remove_blank_fields');
-const requireToken = passport.authenticate('bearer', { session: false });
+const removeBlanks = require('../../lib/remove_blank_fields')
+const requireToken = passport.authenticate('bearer', { session: false })
 
-const router = express.Router();
+const router = express.Router()
 
 // =======================
 // INDEX: Get all pieces
-// GET /pieces
+// GET /api/pieces
 // =======================
-router.get('/pieces', async (req, res, next) => {
+router.get('/', async (req, res, next) => {
   try {
-    console.log("Fetching all pieces");
-    const pieces = await Piece.find();
-    res.status(200).json({ pieces: pieces.map(piece => piece.toObject()) });
+    const pieces = await Piece.find()
+    res.status(200).json({ pieces: pieces.map(p => p.toObject()) })
   } catch (err) {
-    next(err);
+    next(err)
   }
-});
+})
 
 // =======================
 // INDEX by Profile Tags
-// GET /pieces/profile/:profileId
+// GET /api/pieces/profile/:profileId
 // =======================
-router.get('/pieces/profile/:profileId', async (req, res, next) => {
+router.get('/profile/:profileId', async (req, res, next) => {
   try {
-    const profile = await Profile.findById(req.params.profileId).then(handle404);
-    const pieces = await Piece.find({ tags: { $in: profile.tags } }).then(handle404);
-    res.status(200).json({ pieces });
+    const profile = await Profile.findById(req.params.profileId).then(handle404)
+    const pieces = await Piece.find({ tags: { $in: profile.tags } })
+    res.status(200).json({ pieces: pieces.map(p => p.toObject()) })
   } catch (err) {
-    next(err);
+    next(err)
   }
-});
+})
 
 // =======================
 // SHOW: Get a single piece
-// GET /pieces/:id
+// GET /api/pieces/:id
 // =======================
-router.get('/pieces/:id', async (req, res, next) => {
+router.get('/:id', async (req, res, next) => {
   try {
-    const piece = await Piece.findById(req.params.id).then(handle404);
-    res.status(200).json({ piece: piece.toObject() });
+    const piece = await Piece.findById(req.params.id).then(handle404)
+    res.status(200).json({ piece: piece.toObject() })
   } catch (err) {
-    next(err);
+    next(err)
   }
-});
+})
 
 // =======================
 // CREATE: Add a new piece
-// POST /pieces
+// POST /api/pieces
 // =======================
-router.post('/pieces', async (req, res, next) => {
+router.post('/', async (req, res, next) => {
   try {
-    const piece = await Piece.create(req.body);
-    res.status(201).json(piece);
+    const piece = await Piece.create(req.body)
+    res.status(201).json({ piece: piece.toObject() })
   } catch (err) {
-    next(err);
+    next(err)
   }
-});
+})
 
 // =======================
 // DESTROY: Delete a piece
-// DELETE /pieces/:id
+// DELETE /api/pieces/:id
 // =======================
-router.delete('/pieces/:id', async (req, res, next) => {
+router.delete('/:id', async (req, res, next) => {
   try {
-    const piece = await Piece.findById(req.params.id).then(handle404);
-    await piece.deleteOne();
-    res.sendStatus(204);
+    const piece = await Piece.findById(req.params.id).then(handle404)
+    await piece.deleteOne()
+    res.sendStatus(204)
   } catch (err) {
-    next(err);
+    next(err)
   }
-});
+})
 
 // =======================
 // UPDATE: Modify a piece
-// PATCH /pieces/:id
+// PATCH /api/pieces/:id
 // =======================
-router.patch('/pieces/:id', requireToken, removeBlanks, async (req, res, next) => {
+router.patch('/:id', requireToken, removeBlanks, async (req, res, next) => {
   try {
-    const piece = await Piece.findById(req.params.id).then(handle404);
-    await piece.updateOne(req.body.piece);
-    res.sendStatus(204);
+    const piece = await Piece.findById(req.params.id).then(handle404)
+    await piece.updateOne(req.body.piece)
+    res.sendStatus(204)
   } catch (err) {
-    next(err);
+    next(err)
   }
-});
+})
 
-module.exports = router;
+module.exports = router

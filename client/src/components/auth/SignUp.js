@@ -1,141 +1,96 @@
-// import React, { Component } from 'react'
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import apiUrl from '../../apiConfig'
 
-import { signUp, signIn } from '../../api/auth'
-import messages from '../shared/AutoDismissAlert/messages'
+const SignUp = ({ msgAlert, setUser }) => {
+	const navigate = useNavigate()
 
-import Form from 'react-bootstrap/Form'
-import Button from 'react-bootstrap/Button'
+	const [email, setEmail] = useState('')
+	const [password, setPassword] = useState('')
+	const [passwordConfirmation, setPasswordConfirmation] = useState('')
 
-const box = {
-    textAlign: 'left',
-    margin: '2px',
-    padding: '5px'
-}
+	const onSignUp = (event) => {
+		event.preventDefault()
 
-const button = {
-    margin: '10px',
-}
-const bgc = {
-    backgroundColor: 'lightgrey',
-    marginTop: "20px",
-    padding: '25px'
-}
-const title = {
-    fontSize: '40px',
-    textAlign: 'left',
-    margin: '20px'
-  }
-  
-  const subtitle = {
-      fontSize: '20px',
-  }
+		fetch(`${apiUrl}/api/users/sign-up`, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({
+				credentials: {
+					email,
+					password,
+					password_confirmation: passwordConfirmation
+				}
+			})
+		})
+			.then(res => {
+				if (!res.ok) {
+					throw new Error('Sign Up Failed')
+				}
+				return res.json()
+			})
+			.then(res => {
+				setUser(res.user)
+				msgAlert({
+					heading: 'Sign Up Success',
+					message: 'You are now registered and logged in.',
+					variant: 'success'
+				})
+				navigate('/')
+			})
+			.catch(error => {
+				console.error('Sign Up Error:', error)
+				msgAlert({
+					heading: 'Sign Up Failed',
+					message: 'Email may be taken, or passwords don’t match.',
+					variant: 'danger'
+				})
+			})
+	}
 
-const SignUp = (props) => {
-    // constructor(props) {
-    // 	super(props)
-
-    // 	this.state = {
-    // 		email: '',
-    // 		password: '',
-    // 		passwordConfirmation: '',
-    // 	}
-    // }    
-    const [email, setEmail] = useState('')
-    const [password, setPassword] = useState('')
-    const [passwordConfirmation, setPasswordConfirmation] = useState('')
-
-    const navigate = useNavigate()
-
-    const onSignUp = (event) => {
-        event.preventDefault()
-
-        const { msgAlert, setUser } = props
-
-        const credentials = { email, password, passwordConfirmation }
-
-        signUp(credentials)
-            .then(() => signIn(credentials))
-            .then((res) => setUser(res.data.user))
-            .then(() =>
-                msgAlert({
-                    heading: 'Sign Up Success',
-                    message: messages.signUpSuccess,
-                    variant: 'success',
-                })
-            )
-            .then(() => navigate('/profile'))
-            .catch((error) => {
-                setEmail('')
-                setPassword('')
-                setPasswordConfirmation('')
-                msgAlert({
-                    heading: 'Sign Up Failed with error: ' + error.message,
-                    message: messages.signUpFailure,
-                    variant: 'danger',
-                })
-            })
-    }
-
-    return (
-        <div className='row'>
-            <div className='col-sm-10 col-md-8 mx-auto mt-5' style={bgc}>
-                <h1 style={title}>Sign Up</h1>
-                <Form onSubmit={onSignUp}>
-                    <div className='container' style={box}>
-                        <Form.Group controlId='email'>
-                            <Form.Label style={subtitle}>Email address</Form.Label>
-                            <Form.Control
-                                style={{ width: '18rem' }}
-                                required
-                                type='email'
-                                name='email'
-                                value={email}
-                                placeholder='Enter email'
-                                onChange={e => setEmail(e.target.value)}
-                            />
-                        </Form.Group>
-                    </div>
-
-                    <div className='container' style={box}>
-                        <Form.Group controlId='password'>
-                            <Form.Label style={subtitle}>Password</Form.Label>
-                            <Form.Control
-                                style={{ width: '18rem' }}
-                                required
-                                name='password'
-                                value={password}
-                                type='password'
-                                placeholder='Password'
-                                onChange={e => setPassword(e.target.value)}
-                            />
-                        </Form.Group>
-                    </div>
-
-                    <div className='container' style={box}>
-                        <Form.Group controlId='passwordConfirmation'>
-                            <Form.Label style={subtitle}>Password Confirmation</Form.Label>
-                            <Form.Control
-                                style={{ width: '18rem' }}
-                                required
-                                name='passwordConfirmation'
-                                value={passwordConfirmation}
-                                type='password'
-                                placeholder='Confirm Password'
-                                onChange={e => setPasswordConfirmation(e.target.value)}
-                            />
-                        </Form.Group>
-                    </div>
-
-                    <Button variant='light' type='submit' style={button}>
-                        Submit
-                    </Button>
-                </Form>
-            </div>
-        </div>
-    )
-
+	return (
+		<div className="container mt-5">
+			<h2>Sign Up</h2>
+			<form onSubmit={onSignUp}>
+				<div className="mb-3">
+					<label htmlFor="email" className="form-label">Email</label>
+					<input
+						type="email"
+						className="form-control"
+						id="email"
+						value={email}
+						onChange={(e) => setEmail(e.target.value)}
+						required
+					/>
+				</div>
+				<div className="mb-3">
+					<label htmlFor="password" className="form-label">Password</label>
+					<input
+						type="password"
+						className="form-control"
+						id="password"
+						value={password}
+						onChange={(e) => setPassword(e.target.value)}
+						required
+					/>
+				</div>
+				<div className="mb-3">
+					<label htmlFor="passwordConfirmation" className="form-label">Confirm Password</label>
+					<input
+						type="password"
+						className="form-control"
+						id="passwordConfirmation"
+						value={passwordConfirmation}
+						onChange={(e) => setPasswordConfirmation(e.target.value)}
+						required
+					/>
+				</div>
+				<button type="submit" className="btn btn-primary">Sign Up</button>
+			</form>
+		</div>
+	)
 }
 
 export default SignUp
