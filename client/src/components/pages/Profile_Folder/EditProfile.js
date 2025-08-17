@@ -3,180 +3,237 @@ import { useNavigate } from 'react-router-dom'
 import { Form, Button, Card } from 'react-bootstrap'
 import apiUrl from '../../../apiConfig'
 
-
-const box = {
-  textAlign: 'left',
-  margin: '2px',
-  padding: '5px'
-}
-const button = {
-  margin: '10px',
-}
-const bgc = {
-  backgroundColor: 'lightgrey',
-  marginTop: "20px",
-  padding: '25px'
-}
-const fav = {
-  textAlign: 'left',
-  margin: '2px',
-  listStyle: 'none'
-}
-const check = {
-  padding: '5px'
-}
-const title = {
-  fontSize: '40px',
-  textAlign: 'left',
-  margin: '20px'
-}
-const subtitle = {
-	fontSize: '20px',
-}
+const box = { textAlign: 'left', margin: '2px', padding: '5px' }
+const button = { margin: '10px' }
+const bgc = { backgroundColor: 'lightgrey', marginTop: '20px', padding: '25px' }
+const fav = { textAlign: 'left', margin: '2px', listStyle: 'none' }
+const check = { padding: '5px' }
+const title = { fontSize: '40px', textAlign: 'left', margin: '20px' }
+const subtitle = { fontSize: '20px' }
 
 const EditProfile = (props) => {
-  //useNavigate for redirecting once profile is succesfully patched
+  const { user, profile: incomingProfile, getProfile, msgAlert } = props
+  const navigate = useNavigate()
 
-  const navigate = useNavigate();
+  // Normalize incoming profile into a safe shape
+  const normalizeProfile = (p = {}) => ({
+    name: p.name ?? '',
+    address: p.address ?? '',
+    // ensure tags as array of {_id, name} or string ids
+    tags: Array.isArray(p.tags) ? p.tags : [],
+    isSubscribed: Boolean(p.isSubscribed),
+  })
 
-  // State are set for our currentProfile that is passed from App.js and tags which will come from props.profile as well
-  // State for tagNames an array of the tag names need for testing which tags are currently attaced to the users profile
-  const [currentProfile, setCurrentProfile] = useState(props.profile)
+  const [currentProfile, setCurrentProfile] = useState(normalizeProfile(incomingProfile))
   const [tags, setTags] = useState([])
-  const [tagNames, setTagNames] = useState(props.profile.tags.map((e) => e.name))
 
-  // call to api when components renders and gets the tags from database
+  // Derived: set of selected tag ids (works for ObjectId strings or populated tag objects)
+  const selectedTagIds = new Set(
+    (currentProfile.tags || []).map(t => (typeof t === 'string' ? t : t?._id)).filter(Boolean)
+  )
+
+  // Keep state in sync if parent profile prop changes later
   useEffect(() => {
-    getTags()
+    setCurrentProfile(normalizeProfile(incomingProfile))
+  }, [incomingProfile])
+
+  // Load tags on mount
+  useEffect(() => {
+    fetch(`${apiUrl}/api/tags`)
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`)
+        return res.json()
+      })
+      .then(data => setTags(data.tags || []))
+      .catch(err => {
+        console.error('GET TAGS ERROR:', err)
+        msgAlert?.({
+          heading: 'Could not load tags',
+          message: 'Please try again shortly.',
+          variant: 'danger',
+        })
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // A function that is called every time the name or address inputs are changed
-  // Function then sets these inputs as the currentProfile state  
-  const handleChange = e => {
-    setCurrentProfile({ ...currentProfile, [e.target.name]: e.target.value })
+  // Controlled inputs
+  const handleChange = (e) => {
+    const { name, value } = e.target
+    setCurrentProfile(prev => ({ ...prev, [name]: value }))
   }
 
-  // Function that runs any time user checks or unchecks one of the tag boxes
-  // Runs logic that either removes or addes tag object to currentProfile
-  // Also either removes or addes tag name to tagNames state
-  const handleCheck = e => {
-    if (e.target.checked) {
-      setCurrentProfile({ ...currentProfile, tags: [...currentProfile.tags, { _id: e.target.id, name: e.target.name }] })
-      setTagNames([...tagNames, e.target.name])
-    }
-    else {
-      let bufferTags = currentProfile.tags
-      let index = tagNames.indexOf(e.target.name)
-      bufferTags.splice(index, 1)
-      setCurrentProfile({ ...currentProfile, tags: bufferTags })
-      setTagNames(currentProfile.tags.map((e) => e.name))
-    }
+  // Toggle tag id in selection (immutable)
+  const handleCheck = (e) => {
+    const { id, checked } = e.target
+    setCurrentProfile(prev => {
+      // convert existing tags to ids
+      const prevIds = new Set((prev.tags || []).map(t => (typeof t === 'string' ? t : t?._id)).filter(Boolean))
+      if (checked) {
+        prevIds.add(id)
+      } else {
+        prevIds.delete(id)
+      }
+      return { ...prev, tags: Array.from(prevIds) }
+    })
   }
 
-  // api call the gets the tags
-  const getTags = () => {
-    fetch(`${apiUrl}/tags`)
-      .then(res => res.json())
-      .then(foundTags => {
-        setTags(foundTags.tags)
-      })
-      .catch(err => console.log(err))
-  }
-
-  // Function runs when Edit Profile button is pressed
-  // Sets currentProfile state to an object that is sent to our data base as a PATCH request
-  // At the end getProfile is run to ensure that profile is up to date inside App.js
+  // Save edits
   const patchProfile = (e) => {
     e.preventDefault()
-    let preJSONBody = {
-      name: currentProfile.name,
-      address: currentProfile.address,
-      tags: currentProfile.tags,
-      isSubscribed: currentProfile.isSubscribed,
-      userId: currentProfile.userId
-    }
-    const requestOptions = {
-      method: 'PATCH',
-      body: JSON.stringify(preJSONBody),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${props.user.token}`
+
+    const payload = {
+      profile: {
+        name: currentProfile.name,
+        address: currentProfile.address,
+        // send ids only; server can populate when reading
+        tags: Array.isArray(currentProfile.tags)
+          ? currentProfile.tags.map(t => (typeof t === 'string' ? t : t?._id)).filter(Boolean)
+          : [],
+        isSubscribed: Boolean(currentProfile.isSubscribed),
       },
     }
-    fetch(`${apiUrl}/profiles/user/${props.user._id}`, requestOptions)
-      .then(patchedProfile => {
-        props.getProfile()
+
+    fetch(`${apiUrl}/api/profiles`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${user.token}`,
+      },
+      body: JSON.stringify(payload),
+    })
+      .then(res => {
+        if (!res.ok) throw new Error(`PATCH failed with status ${res.status}`)
+        return res.json()
+      })
+      .then(({ profile }) => {
+        msgAlert?.({
+          heading: 'Profile updated',
+          message: 'Your changes have been saved.',
+          variant: 'success',
+        })
+        // sync with server truth if returned
+        if (profile) setCurrentProfile(normalizeProfile(profile))
+        getProfile?.()
         navigate('/profile')
       })
-      .catch(err => console.error(err))
+      .catch(err => {
+        console.error('PATCH PROFILE ERROR:', err)
+        msgAlert?.({
+          heading: 'Update failed',
+          message: 'Please review your changes and try again.',
+          variant: 'danger',
+        })
+      })
   }
 
-  // Function runs any time user press the cancel subscription button
-  // Sends a object with only the isSubscribed attribute as a PATCH request to our data base
-  // At end runs getProfile to ensure that our profile in App.js is up to date
+  // Cancel subscription
   const patchSubscription = (e) => {
     e.preventDefault()
-    let preJSONBody = {
-      isSubscribed: false,
-    }
-    const requestOptions = {
+    const payload = { profile: { isSubscribed: false } }
+
+    fetch(`${apiUrl}/api/profiles`, {
       method: 'PATCH',
-      body: JSON.stringify(preJSONBody),
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${props.user.token}`
+        Authorization: `Bearer ${user.token}`,
       },
-    }
-    fetch(`${apiUrl}/profiles/user/${props.user._id}`, requestOptions)
-      .then(patchedProfile => {
-        props.getProfile()
+      body: JSON.stringify(payload),
+    })
+      .then(res => {
+        if (!res.ok) throw new Error(`PATCH failed with status ${res.status}`)
+        return res.json()
+      })
+      .then(({ profile }) => {
+        msgAlert?.({
+          heading: 'Subscription canceled',
+          message: 'Your subscription has been canceled.',
+          variant: 'success',
+        })
+        if (profile) setCurrentProfile(normalizeProfile(profile))
+        getProfile?.()
         navigate('/profile')
       })
-      .catch(err => console.error(err))
+      .catch(err => {
+        console.error('CANCEL SUBSCRIPTION ERROR:', err)
+        msgAlert?.({
+          heading: 'Could not cancel',
+          message: 'Please try again.',
+          variant: 'danger',
+        })
+      })
   }
 
-  // Funtion that runs when cancel button is pressed that takes user back to existing profile
-  const goBack = () => {
-    return navigate('/profile')
-  }
+  const goBack = () => navigate('/profile')
 
   return (
     <div>
       <div className='container' style={bgc}>
         <h1 style={title}>Edit Profile</h1>
+
         <Form onSubmit={patchProfile}>
           <div className='container' style={box}>
-            <Form.Group className="mb-3" controlId="formBasicEmail">
+            <Form.Group className="mb-3" controlId="name-input">
               <Form.Label style={subtitle}>Name</Form.Label>
-              <Form.Control style={{ width: '18rem' }} placeholder="Enter name" onChange={handleChange} type="text" name="name" id="name" />
+              <Form.Control
+                style={{ width: '18rem' }}
+                placeholder="Enter name"
+                onChange={handleChange}
+                type="text"
+                name="name"
+                id="name"
+                value={currentProfile.name}
+              />
             </Form.Group>
           </div>
+
           <div className='container' style={box}>
-            <Form.Group className="mb-3" controlId="formBasicPassword">
+            <Form.Group className="mb-3" controlId="address-input">
               <Form.Label style={subtitle}>Address</Form.Label>
-              <Form.Control style={{ width: '18rem' }} placeholder="Address" onChange={handleChange} type="text" name="address" id="address" />
+              <Form.Control
+                style={{ width: '18rem' }}
+                placeholder="Address"
+                onChange={handleChange}
+                type="text"
+                name="address"
+                id="address"
+                value={currentProfile.address}
+              />
             </Form.Group>
           </div>
+
           <div className='container' style={box}>
             <Card style={{ width: '18rem' }}>
               <Card.Header style={subtitle}>Favorite Art Categories</Card.Header>
-              {
-                tags.map(tag => (
-                  <li style={fav}>
-                    <label style={check} htmlFor={tag.name}>{tag.name}</label>
-                    <input onChange={handleCheck} type="checkbox" checked={tagNames.includes(tag.name) ? true : false} name={tag.name} id={tag._id} />
+              <ul style={{ margin: 0, padding: 0 }}>
+                {tags.map(tag => (
+                  <li key={tag._id} style={fav}>
+                    <label style={check} htmlFor={tag._id}>{tag.name}</label>
+                    <input
+                      onChange={handleCheck}
+                      type="checkbox"
+                      id={tag._id}
+                      name={tag.name}
+                      checked={selectedTagIds.has(tag._id)}
+                    />
                   </li>
-                ))
-              }
+                ))}
+              </ul>
             </Card>
           </div>
+
           <Button variant="light" type="submit" style={button}>
             Submit
           </Button>
-          <Button variant="light" type="goBack" onClick={goBack} style={button}>
+          <Button variant="light" type="button" onClick={goBack} style={button}>
             Cancel
           </Button>
-          <Button hidden={!currentProfile.isSubscribed} variant="danger" type="goBack" onClick={patchSubscription} style={button}>
+          <Button
+            hidden={!currentProfile.isSubscribed}
+            variant="danger"
+            type="button"
+            onClick={patchSubscription}
+            style={button}
+          >
             Cancel Subscription
           </Button>
         </Form>
