@@ -2,21 +2,16 @@ import React from 'react'
 import CreateProfile from './CreateProfile'
 import ExistingProfile from './ExistingProfile'
 
-
 const Profile = (props) => {
-    
-    // If statment that test if user has a profile
-    // When user has a profile that are sent to ExistingProfile component with profile prop
-    // When the user dose not have profile is sent to CreateProfile with getProfile prop and user prop
-    
-    if(props.profile){
-        return <ExistingProfile changePassword={props.changePassword}
-                        profile={props.profile}/>
-    } else {
-        return <CreateProfile user={props.user} 
-                        getProfile={props.getProfile}
-                        msgAlert={props.msgAlert} />
-    }
-}
+  const { profile, user, getProfile, msgAlert, changePassword } = props;
 
-export default Profile
+  // If no profile yet, show CreateProfile
+  if (!profile) {
+    return <CreateProfile user={user} getProfile={getProfile} msgAlert={msgAlert} />;
+  }
+
+  // If profile exists, show ExistingProfile
+  return <ExistingProfile changePassword={changePassword} profile={profile} />;
+};
+
+export default Profile;
