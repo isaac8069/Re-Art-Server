@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react'
+import React, { useEffect, useMemo, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Form, Button, Card } from 'react-bootstrap'
+import { Form, Button, Card, Spinner, Alert } from 'react-bootstrap'
 import apiUrl from '../../../apiConfig'
 
 const box = { textAlign: 'left', margin: '2px', padding: '5px' }
@@ -11,81 +11,103 @@ const check = { padding: '5px' }
 const title = { fontSize: '40px', textAlign: 'left', margin: '20px' }
 const subtitle = { fontSize: '20px' }
 
+const normalizeProfile = (p = {}) => ({
+  name: p?.name ?? '',
+  address: p?.address ?? '',
+  tags: Array.isArray(p?.tags) ? p.tags : [],
+  isSubscribed: Boolean(p?.isSubscribed),
+})
+
 const EditProfile = (props) => {
   const { user, profile: incomingProfile, getProfile, msgAlert } = props
   const navigate = useNavigate()
 
-  // Normalize incoming profile into a safe shape
-  const normalizeProfile = (p = {}) => ({
-    name: p.name ?? '',
-    address: p.address ?? '',
-    // ensure tags as array of {_id, name} or string ids
-    tags: Array.isArray(p.tags) ? p.tags : [],
-    isSubscribed: Boolean(p.isSubscribed),
-  })
-
+  // form state
   const [currentProfile, setCurrentProfile] = useState(normalizeProfile(incomingProfile))
+
+  // tags state
   const [tags, setTags] = useState([])
+  const [tagsLoading, setTagsLoading] = useState(true)
+  const [tagsError, setTagsError] = useState(null)
 
-  // Derived: set of selected tag ids (works for ObjectId strings or populated tag objects)
-  const selectedTagIds = new Set(
-    (currentProfile.tags || []).map(t => (typeof t === 'string' ? t : t?._id)).filter(Boolean)
-  )
+  // submit state
+  const [submitting, setSubmitting] = useState(false)
 
-  // Keep state in sync if parent profile prop changes later
+  // sync if parent updates profile after mount
   useEffect(() => {
     setCurrentProfile(normalizeProfile(incomingProfile))
   }, [incomingProfile])
 
-  // Load tags on mount
+  // selected tag ids (supports array of ids or populated objects)
+  const selectedTagIds = useMemo(() => {
+    const ids = (currentProfile.tags || [])
+      .map(t => (typeof t === 'string' ? t : t?._id))
+      .filter(Boolean)
+    return new Set(ids)
+  }, [currentProfile.tags])
+
+  // load tags
   useEffect(() => {
-    fetch(`${apiUrl}/api/tags`)
-      .then(res => {
-        if (!res.ok) throw new Error(`HTTP error! Status: ${res.status}`)
-        return res.json()
-      })
-      .then(data => setTags(data.tags || []))
-      .catch(err => {
+    const controller = new AbortController()
+
+    async function loadTags () {
+      try {
+        setTagsLoading(true)
+        setTagsError(null)
+
+        const res = await fetch(`${apiUrl}/api/tags`, { signal: controller.signal })
+        if (!res.ok) throw new Error(`Tags request failed (${res.status})`)
+        const data = await res.json()
+        const parsed = Array.isArray(data) ? data : (data?.tags || [])
+        setTags(parsed)
+      } catch (err) {
+        if (err.name === 'AbortError') return
         console.error('GET TAGS ERROR:', err)
+        setTagsError('Could not load tags.')
         msgAlert?.({
           heading: 'Could not load tags',
           message: 'Please try again shortly.',
           variant: 'danger',
         })
-      })
+      } finally {
+        setTagsLoading(false)
+      }
+    }
+
+    loadTags()
+    return () => controller.abort()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Controlled inputs
-  const handleChange = (e) => {
+  // handlers
+  const handleChange = useCallback((e) => {
     const { name, value } = e.target
     setCurrentProfile(prev => ({ ...prev, [name]: value }))
-  }
+  }, [])
 
-  // Toggle tag id in selection (immutable)
-  const handleCheck = (e) => {
+  const handleCheck = useCallback((e) => {
     const { id, checked } = e.target
     setCurrentProfile(prev => {
-      // convert existing tags to ids
-      const prevIds = new Set((prev.tags || []).map(t => (typeof t === 'string' ? t : t?._id)).filter(Boolean))
-      if (checked) {
-        prevIds.add(id)
-      } else {
-        prevIds.delete(id)
-      }
+      const prevIds = new Set(
+        (prev.tags || []).map(t => (typeof t === 'string' ? t : t?._id)).filter(Boolean)
+      )
+      if (checked) prevIds.add(id)
+      else prevIds.delete(id)
       return { ...prev, tags: Array.from(prevIds) }
     })
-  }
+  }, [])
 
-  // Save edits
-  const patchProfile = (e) => {
+  const goBack = useCallback(() => navigate('/profile'), [navigate])
+
+  const patchProfile = useCallback(async (e) => {
     e.preventDefault()
+    if (submitting) return
+    setSubmitting(true)
 
     const payload = {
       profile: {
         name: currentProfile.name,
         address: currentProfile.address,
-        // send ids only; server can populate when reading
         tags: Array.isArray(currentProfile.tags)
           ? currentProfile.tags.map(t => (typeof t === 'string' ? t : t?._id)).filter(Boolean)
           : [],
@@ -93,77 +115,78 @@ const EditProfile = (props) => {
       },
     }
 
-    fetch(`${apiUrl}/api/profiles`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${user.token}`,
-      },
-      body: JSON.stringify(payload),
-    })
-      .then(res => {
-        if (!res.ok) throw new Error(`PATCH failed with status ${res.status}`)
-        return res.json()
+    try {
+      const res = await fetch(`${apiUrl}/api/profiles`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${user?.token}`,
+        },
+        body: JSON.stringify(payload),
       })
-      .then(({ profile }) => {
-        msgAlert?.({
-          heading: 'Profile updated',
-          message: 'Your changes have been saved.',
-          variant: 'success',
-        })
-        // sync with server truth if returned
-        if (profile) setCurrentProfile(normalizeProfile(profile))
-        getProfile?.()
-        navigate('/profile')
-      })
-      .catch(err => {
-        console.error('PATCH PROFILE ERROR:', err)
-        msgAlert?.({
-          heading: 'Update failed',
-          message: 'Please review your changes and try again.',
-          variant: 'danger',
-        })
-      })
-  }
+      if (!res.ok) throw new Error(`PATCH failed (${res.status})`)
+      const data = await res.json()
 
-  // Cancel subscription
-  const patchSubscription = (e) => {
+      msgAlert?.({
+        heading: 'Profile updated',
+        message: 'Your changes have been saved.',
+        variant: 'success',
+      })
+
+      if (data?.profile) setCurrentProfile(normalizeProfile(data.profile))
+      getProfile?.()
+      navigate('/profile')
+    } catch (err) {
+      console.error('PATCH PROFILE ERROR:', err)
+      msgAlert?.({
+        heading: 'Update failed',
+        message: 'Please review your changes and try again.',
+        variant: 'danger',
+      })
+    } finally {
+      setSubmitting(false)
+    }
+  }, [currentProfile, getProfile, msgAlert, navigate, submitting, user?.token])
+
+  const patchSubscription = useCallback(async (e) => {
     e.preventDefault()
+    if (submitting) return
+    setSubmitting(true)
+
     const payload = { profile: { isSubscribed: false } }
 
-    fetch(`${apiUrl}/api/profiles`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${user.token}`,
-      },
-      body: JSON.stringify(payload),
-    })
-      .then(res => {
-        if (!res.ok) throw new Error(`PATCH failed with status ${res.status}`)
-        return res.json()
+    try {
+      const res = await fetch(`${apiUrl}/api/profiles`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${user?.token}`,
+        },
+        body: JSON.stringify(payload),
       })
-      .then(({ profile }) => {
-        msgAlert?.({
-          heading: 'Subscription canceled',
-          message: 'Your subscription has been canceled.',
-          variant: 'success',
-        })
-        if (profile) setCurrentProfile(normalizeProfile(profile))
-        getProfile?.()
-        navigate('/profile')
-      })
-      .catch(err => {
-        console.error('CANCEL SUBSCRIPTION ERROR:', err)
-        msgAlert?.({
-          heading: 'Could not cancel',
-          message: 'Please try again.',
-          variant: 'danger',
-        })
-      })
-  }
+      if (!res.ok) throw new Error(`PATCH failed (${res.status})`)
+      const data = await res.json()
 
-  const goBack = () => navigate('/profile')
+      msgAlert?.({
+        heading: 'Subscription canceled',
+        message: 'Your subscription has been canceled.',
+        variant: 'success',
+      })
+
+      if (data?.profile) setCurrentProfile(normalizeProfile(data.profile))
+      getProfile?.()
+      navigate('/profile')
+    } catch (err) {
+      console.error('CANCEL SUBSCRIPTION ERROR:', err)
+      msgAlert?.({
+        heading: 'Could not cancel',
+        message: 'Please try again.',
+        variant: 'danger',
+      })
+    } finally {
+      setSubmitting(false)
+    }
+  }, [getProfile, msgAlert, navigate, submitting, user?.token])
 
   return (
     <div>
@@ -171,8 +194,9 @@ const EditProfile = (props) => {
         <h1 style={title}>Edit Profile</h1>
 
         <Form onSubmit={patchProfile}>
+
           <div className='container' style={box}>
-            <Form.Group className="mb-3" controlId="name-input">
+            <Form.Group className="mb-3" controlId="name">
               <Form.Label style={subtitle}>Name</Form.Label>
               <Form.Control
                 style={{ width: '18rem' }}
@@ -180,14 +204,14 @@ const EditProfile = (props) => {
                 onChange={handleChange}
                 type="text"
                 name="name"
-                id="name"
                 value={currentProfile.name}
+                disabled={submitting}
               />
             </Form.Group>
           </div>
 
           <div className='container' style={box}>
-            <Form.Group className="mb-3" controlId="address-input">
+            <Form.Group className="mb-3" controlId="address">
               <Form.Label style={subtitle}>Address</Form.Label>
               <Form.Control
                 style={{ width: '18rem' }}
@@ -195,8 +219,8 @@ const EditProfile = (props) => {
                 onChange={handleChange}
                 type="text"
                 name="address"
-                id="address"
                 value={currentProfile.address}
+                disabled={submitting}
               />
             </Form.Group>
           </div>
@@ -204,37 +228,59 @@ const EditProfile = (props) => {
           <div className='container' style={box}>
             <Card style={{ width: '18rem' }}>
               <Card.Header style={subtitle}>Favorite Art Categories</Card.Header>
-              <ul style={{ margin: 0, padding: 0 }}>
-                {tags.map(tag => (
-                  <li key={tag._id} style={fav}>
-                    <label style={check} htmlFor={tag._id}>{tag.name}</label>
-                    <input
-                      onChange={handleCheck}
-                      type="checkbox"
-                      id={tag._id}
-                      name={tag.name}
-                      checked={selectedTagIds.has(tag._id)}
-                    />
-                  </li>
-                ))}
-              </ul>
+
+              {tagsLoading && (
+                <div className="p-3">
+                  <Spinner animation="border" size="sm" /> Loading tags…
+                </div>
+              )}
+
+              {!tagsLoading && tagsError && (
+                <div className="p-3">
+                  <Alert variant="danger" className="mb-0">Could not load tags.</Alert>
+                </div>
+              )}
+
+              {!tagsLoading && !tagsError && (
+                <ul style={{ margin: 0, padding: 0 }}>
+                  {tags.map(tag => (
+                    <li key={tag._id} style={fav}>
+                      <input
+                        onChange={handleCheck}
+                        type="checkbox"
+                        id={tag._id}
+                        name={tag.name}
+                        checked={selectedTagIds.has(tag._id)}
+                        disabled={submitting}
+                      />
+                      <label style={check} htmlFor={tag._id}>{tag.name}</label>
+                    </li>
+                  ))}
+                  {tags.length === 0 && (
+                    <li className="p-3">No tags available.</li>
+                  )}
+                </ul>
+              )}
             </Card>
           </div>
 
-          <Button variant="light" type="submit" style={button}>
-            Submit
+          <Button variant="light" type="submit" style={button} disabled={submitting}>
+            {submitting ? 'Saving…' : 'Submit'}
           </Button>
-          <Button variant="light" type="button" onClick={goBack} style={button}>
+
+          <Button variant="light" type="button" onClick={goBack} style={button} disabled={submitting}>
             Cancel
           </Button>
+
           <Button
             hidden={!currentProfile.isSubscribed}
             variant="danger"
             type="button"
             onClick={patchSubscription}
             style={button}
+            disabled={submitting}
           >
-            Cancel Subscription
+            {submitting ? 'Processing…' : 'Cancel Subscription'}
           </Button>
         </Form>
       </div>
